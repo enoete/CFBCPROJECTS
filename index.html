@@ -357,7 +357,8 @@ const CFBC_EVENTS = [
                 let fullText = '';
                 
                 for (let i = 1; i <= pdf.numPages; i++) {
-                    const page = await page.getTextContent();
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
                     const pageText = textContent.items.map(item => item.str).join(' ');
                     fullText += pageText + '\n';
                 }
@@ -365,6 +366,7 @@ const CFBC_EVENTS = [
                 return fullText;
             } catch (error) {
                 console.error('PDF parsing error:', error);
+                setDebugInfo(`Error: ${error.message}`);
                 throw error;
             }
         };
@@ -519,6 +521,7 @@ const CFBC_EVENTS = [
             if (!file) return;
 
             setUploading(true);
+            setDebugInfo('');
             try {
                 const text = await parsePDF(file);
                 const schedule = parseScheduleText(text);
@@ -526,6 +529,8 @@ const CFBC_EVENTS = [
                 if (schedule) {
                     setUserSchedule(schedule);
                     setDebugInfo(`Parsed ${schedule.courses.length} courses with ${schedule.totalMeetings} meetings`);
+                } else {
+                    setDebugInfo('Error: Could not parse schedule from file.');
                 }
             } catch (error) {
                 console.error('Upload error:', error);
@@ -820,7 +825,7 @@ const CFBC_EVENTS = [
                                 'Upcoming Events'
                             ),
                             React.createElement('div', { className: 'space-y-2 max-h-96 overflow-y-auto' },
-                                upcomingEvents.slice(0, 7).map((event, idx) => {
+                                filteredEvents.slice(0, 7).map((event, idx) => {
                                     const status = getEventStatus(event);
                                     const borderColor = status === 'today' ? 'border-green-500' :
                                                       status === 'tomorrow' ? 'border-orange-500' :
@@ -950,10 +955,10 @@ const CFBC_EVENTS = [
                                                 )
                                             ),
                                             status === 'today' && React.createElement('span', {
-                                                className: `${badgeClass} text-white text-xs px-2 py-1 rounded-full`
+                                                className: 'ml-2 inline-block bg-green-500 text-white text-xs px-2 py-0.5 rounded-full'
                                             }, 'Today'),
                                             status === 'tomorrow' && React.createElement('span', {
-                                                className: `${badgeClass} text-white text-xs px-2 py-1 rounded-full`
+                                                className: 'ml-2 inline-block bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full'
                                             }, 'Tomorrow')
                                         )
                                     );
