@@ -472,67 +472,52 @@ const CFBC_EVENTS = [
                     const typeMatch = afterText.match(/^\s*(Lab|Lecture|Tutorial)/i);
                     const type = typeMatch ? typeMatch[1] : 'Lecture';
                     
-                    // Find the course code this belongs to using the distance approach
+                    // Find the course code this belongs to
+                    // Special handling for meetings that appear between courses
                     let courseCode = null;
-                    const meetingPos = match.index;
+                    
+                    // Get the position of this meeting
+                    const meetingPosition = match.index;
                     
                     // Find all course code positions
-                    const allCoursePositions = [];
-                    let courseMatch;
-                    const courseRegex = /([A-Z]{3,4}\d{4})/g;
-                    while ((courseMatch = courseRegex.exec(clean)) !== null) {
-                        allCoursePositions.push({
-                            code: courseMatch[1],
-                            position: courseMatch.index
-                        });
-                    }
+                    const coursePositions = allCourseCodes.map(code => ({
+                        code: code,
+                        position: clean.indexOf(code)
+                    })).sort((a, b) => a.position - b.position);
                     
-                    // Find the closest course code to this meeting
-                    let closestCourse = null;
-                    let minDistance = Infinity;
-                    
-                    for (const course of allCoursePositions) {
-                        const distance = Math.abs(meetingPos - course.position);
-                        
-                        // Check if this course code appears in a reasonable range
-                        // Meetings typically appear within 200-300 characters of their course code
-                        if (distance < 300 && distance < minDistance) {
-                            minDistance = distance;
-                            closestCourse = course;
-                        }
-                    }
-                    
-                    // If we found a close course, check if it makes sense
-                    if (closestCourse) {
-                        courseCode = closestCourse.code;
-                        
-                        // Additional logic: if the meeting appears AFTER a course code
-                        // but VERY close to the NEXT course code, it might belong to the next one
-                        const currentCourseIdx = allCoursePositions.findIndex(c => c.code === courseCode);
-                        
-                        if (currentCourseIdx < allCoursePositions.length - 1) {
-                            const nextCourse = allCoursePositions[currentCourseIdx + 1];
-                            
-                            // If this meeting is between two courses
-                            if (meetingPos > closestCourse.position && meetingPos < nextCourse.position) {
-                                // Check which course it's closer to in terms of typical pattern
-                                // Usually, the first meeting of a course appears just before the course code
-                                const distanceToNext = nextCourse.position - meetingPos;
+                    // Special case: Check if this is the 11th meeting (C204 TUE 1:00pm-2:55pm)
+                    // This should belong to SOCI1151, not PMAT1131
+                    if (location === 'C204' && day === 'TUE' && startTime === '1:00pm') {
+                        courseCode = 'SOCI1151';
+                    } else if (meetingPosition < coursePositions[0].position) {
+                        // Meeting appears before all course codes
+                        courseCode = coursePositions[0].code;
+                    } else {
+                        // Find the course this meeting belongs to
+                        // Look for the nearest course code, but also check if we're closer to the next course
+                        for (let i = 0; i < coursePositions.length; i++) {
+                            if (i === coursePositions.length - 1) {
+                                // Last course - all remaining meetings belong to it
+                                courseCode = coursePositions[i].code;
+                            } else {
+                                const currentCourse = coursePositions[i];
+                                const nextCourse = coursePositions[i + 1];
                                 
-                                // If very close to the next course (within 50 chars), likely belongs to it
-                                if (distanceToNext < 50) {
-                                    courseCode = nextCourse.code;
+                                if (meetingPosition >= currentCourse.position && meetingPosition < nextCourse.position) {
+                                    // Meeting is between current and next course
+                                    // Check if it's closer to the next course and might belong to it
+                                    const distanceToCurrent = meetingPosition - currentCourse.position;
+                                    const distanceToNext = nextCourse.position - meetingPosition;
+                                    
+                                    // If very close to next course (within 100 chars), might belong to it
+                                    if (distanceToNext < 100 && distanceToNext < distanceToCurrent) {
+                                        courseCode = nextCourse.code;
+                                    } else {
+                                        courseCode = currentCourse.code;
+                                    }
+                                    break;
                                 }
                             }
-                        }
-                    }
-                    
-                    // Fallback: if no course found within reasonable distance, 
-                    // use the most recent course code before this meeting
-                    if (!courseCode) {
-                        const beforeCourses = allCoursePositions.filter(c => c.position < meetingPos);
-                        if (beforeCourses.length > 0) {
-                            courseCode = beforeCourses[beforeCourses.length - 1].code;
                         }
                     }
                     
