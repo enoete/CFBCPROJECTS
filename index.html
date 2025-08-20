@@ -229,7 +229,6 @@ const CFBC_EVENTS = [
   {"event": "Summer Final examination period", "department": "Division: Health Sciences", "date": "Sunday, Jul 20, 2025"},
   {"event": "AY 2026-2027 Late Application Period Commences", "department": "Office of the Registrar", "date": "Monday, Aug 10, 2026"}
 ];
-
 </script>
 
 <script type="text/babel">
@@ -316,35 +315,25 @@ const CFBC_EVENTS = [
         const [selectedCampus, setSelectedCampus] = useState('All');
         const fileInputRef = useRef(null);
 
-        // Initialize events on mount with dynamic today/tomorrow events
-        useEffect(() => {
-            // Add dynamic events for today and tomorrow to demonstrate color coding
-            const today = new Date();
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            
-            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                              'July', 'August', 'September', 'October', 'November', 'December'];
-            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-            
-            const formatDate = (date) => {
-                const day = date.getDate();
-                const suffix = day === 1 || day === 21 || day === 31 ? 'st' :
-                              day === 2 || day === 22 ? 'nd' :
-                              day === 3 || day === 23 ? 'rd' : 'th';
-                return `${dayNames[date.getDay()]}, ${day}${suffix} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
-            };
-            
-            // Add demo events for color coding demonstration
-           const dynamicEvents = [
-              //{"event": "Tomorrow: Career Fair Preparation", "department": "Student Services", "date": formatDate(tomorrow)},
-                //{"event": "Tomorrow: Tech Workshop", "department": "IT Department", "date": formatDate(tomorrow)},
-               ...CFBC_EVENTS
-            ];
-            
-            setEvents(CFBC_EVENTS);
-            console.log('Events loaded:', dynamicEvents.length);
-        }, []);
+        // Define a pastel color palette for schedule boxes
+        const PASTEL_COLORS = [
+            'bg-blue-200 text-blue-800', 'bg-green-200 text-green-800', 'bg-purple-200 text-purple-800', 
+            'bg-pink-200 text-pink-800', 'bg-yellow-200 text-yellow-800', 'bg-indigo-200 text-indigo-800', 
+            'bg-red-200 text-red-800', 'bg-orange-200 text-orange-800'
+        ];
+
+        // Assign a color to each course code
+        const courseColors = useMemo(() => {
+            const colors = {};
+            let colorIndex = 0;
+            if (userSchedule) {
+                userSchedule.courses.forEach(course => {
+                    colors[course.code] = PASTEL_COLORS[colorIndex % PASTEL_COLORS.length];
+                    colorIndex++;
+                });
+            }
+            return colors;
+        }, [userSchedule]);
 
         // Save schedule to localStorage whenever it changes
         useEffect(() => {
@@ -356,32 +345,44 @@ const CFBC_EVENTS = [
         // Parse date from event date string
         const parseEventDate = (dateStr) => {
             try {
-                // Handle various date formats
-                if (dateStr.includes(' - ')) {
-                    // Range of dates, use the start date
-                    dateStr = dateStr.split(' - ')[0];
+                const today = new Date();
+                const currentYear = today.getFullYear();
+                
+                if (dateStr.includes('TBD')) return null;
+
+                if (dateStr.includes('–')) { // Handle date ranges
+                    dateStr = dateStr.split('–')[0].trim();
                 }
                 
-                // Parse formats like "Monday, 3rd November 2025"
-                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                                  'July', 'August', 'September', 'October', 'November', 'December'];
-                
-                for (let i = 0; i < monthNames.length; i++) {
-                    if (dateStr.includes(monthNames[i])) {
-                        const parts = dateStr.match(/(\d+)(?:st|nd|rd|th)?\s+([A-Za-z]+)\s+(\d{4})/);
-                        if (parts) {
-                            const day = parseInt(parts[1]);
-                            const year = parseInt(parts[3]);
-                            return new Date(year, i, day);
+                const parts = dateStr.match(/(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s*([A-Za-z]{3,4})\s*(\d{1,2})|(\d{1,2}(?:st|nd|rd|th)?)\s*([A-Za-z]+)\s*(\d{4})?/);
+
+                if (parts) {
+                    let month, day, year;
+                    if (parts[1]) { // Format like "Mon, Aug 11"
+                        month = parts[1];
+                        day = parseInt(parts[2]);
+                        year = currentYear;
+                    } else if (parts[3]) { // Format like "11th August 2025"
+                        day = parseInt(parts[3]);
+                        month = parts[4];
+                        year = parseInt(parts[5]);
+                    }
+
+                    if (month && day) {
+                        const monthIndex = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                                           .findIndex(m => month.toLowerCase().startsWith(m.toLowerCase()));
+                        if (monthIndex !== -1) {
+                            return new Date(year, monthIndex, day);
                         }
                     }
                 }
-                
-                // Try parsing ISO format dates
-                if (dateStr.match(/\d{4}-\d{2}-\d{2}/)) {
-                    return new Date(dateStr);
+
+                // Fallback for other formats
+                const date = new Date(dateStr);
+                if (!isNaN(date.getTime())) {
+                    return date;
                 }
-                
+
                 return null;
             } catch (e) {
                 return null;
@@ -402,15 +403,12 @@ const CFBC_EVENTS = [
             
             if (eventDate.getTime() === today.getTime()) return 'today';
             if (eventDate.getTime() === tomorrow.getTime()) return 'tomorrow';
-            if (eventDate > today) return 'upcoming';
+            if (eventDate >= today) return 'upcoming';
             return 'past';
         };
 
         // Filter and sort events
         const filteredEvents = useMemo(() => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
             return events
                 .filter(event => {
                     const status = getEventStatus(event);
@@ -592,17 +590,19 @@ const CFBC_EVENTS = [
         };
 
         // Get color for course
-        const getColorForCourse = (courseCode) => {
-            const colors = [
-                'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500',
-                'bg-yellow-500', 'bg-indigo-500', 'bg-red-500', 'bg-orange-500'
+        const getColorForCourse = useCallback((courseCode) => {
+             const colors = [
+                'bg-blue-200 text-blue-800', 'bg-green-200 text-green-800', 'bg-purple-200 text-purple-800', 
+                'bg-pink-200 text-pink-800', 'bg-yellow-200 text-yellow-800', 'bg-indigo-200 text-indigo-800', 
+                'bg-red-200 text-red-800', 'bg-orange-200 text-orange-800'
             ];
             let hash = 0;
             for (let i = 0; i < courseCode.length; i++) {
                 hash = courseCode.charCodeAt(i) + ((hash << 5) - hash);
             }
             return colors[Math.abs(hash) % colors.length];
-        };
+        }, []);
+
 
         // Handle file upload
         const handleFileUpload = async (event) => {
@@ -634,7 +634,13 @@ const CFBC_EVENTS = [
             if (!userSchedule || !userSchedule.meetings) return [];
             const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
             const dayName = days[dayIndex];
-            return userSchedule.meetings.filter(m => m.day === dayName).sort((a, b) => {
+            const meetings = userSchedule.meetings.filter(m => m.day === dayName);
+
+            // Add the dynamic color class
+            return meetings.map(m => ({
+                ...m,
+                color: getColorForCourse(m.courseCode)
+            })).sort((a, b) => {
                 const timeA = parseInt(a.startTime.replace(/[^\d]/g, ''));
                 const timeB = parseInt(b.startTime.replace(/[^\d]/g, ''));
                 return timeA - timeB;
@@ -689,7 +695,6 @@ const CFBC_EVENTS = [
                                 onClick: () => setShowEventsModal(true),
                                 className: 'relative px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2'
                             },
-                                React.createElement(Calendar, { size: 20 }),
                                 React.createElement('span', null, 'Events'),
                                 upcomingEvents.filter(e => getEventStatus(e) === 'today').length > 0 &&
                                 React.createElement('span', { className: 'absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse' })
@@ -698,7 +703,6 @@ const CFBC_EVENTS = [
                                 onClick: () => setShowLocationsModal(true),
                                 className: 'px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2'
                             },
-                                React.createElement(MapPin, { size: 20 }),
                                 React.createElement('span', null, 'Locations')
                             )
                         )
@@ -841,7 +845,7 @@ const CFBC_EVENTS = [
                                                 getMeetingsForDay(selectedDay).map((meeting, idx) =>
                                                     React.createElement('div', {
                                                         key: idx,
-                                                        className: `${meeting.color} text-white rounded-lg p-4 shadow`
+                                                        className: `${meeting.color} rounded-lg p-4 shadow`
                                                     },
                                                         React.createElement('div', { className: 'flex items-start justify-between' },
                                                             React.createElement('div', null,
@@ -896,7 +900,7 @@ const CFBC_EVENTS = [
                             getMeetingsForDay(new Date().getDay()).length > 0 ?
                                 React.createElement('div', { className: 'space-y-2' },
                                     getMeetingsForDay(new Date().getDay()).map((meeting, idx) =>
-                                        React.createElement('div', { key: idx, className: `${meeting.color} text-white rounded-lg p-3` },
+                                        React.createElement('div', { key: idx, className: `${meeting.color} rounded-lg p-3` },
                                             React.createElement('div', { className: 'font-medium' }, meeting.courseCode),
                                             React.createElement('div', { className: 'text-sm opacity-90' },
                                                 `${meeting.type} • ${meeting.startTime} - ${meeting.endTime}`
@@ -953,37 +957,37 @@ const CFBC_EVENTS = [
                                     href: 'https://what3words.com/examples.rats.lanes',
                                     target: '_blank',
                                     rel: 'noopener noreferrer',
-                                    className: 'block p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors'
+                                    className: 'block p-2 bg-blue-50 text-blue-800 rounded hover:bg-blue-100 transition-colors'
                                 },
                                     React.createElement('div', { className: 'font-medium text-sm' }, 'Main Campus'),
-                                    React.createElement('div', { className: 'text-xs text-gray-600' }, 'Burdon Street')
+                                    React.createElement('div', { className: 'text-xs opacity-90' }, 'Burdon Street')
                                 ),
                                 React.createElement('a', {
                                     href: 'https://what3words.com/silks.dumpy.tweaked',
                                     target: '_blank',
                                     rel: 'noopener noreferrer',
-                                    className: 'block p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors'
+                                    className: 'block p-2 bg-green-50 text-green-800 rounded hover:bg-green-100 transition-colors'
                                 },
                                     React.createElement('div', { className: 'font-medium text-sm' }, 'Health Sciences'),
-                                    React.createElement('div', { className: 'text-xs text-gray-600' }, 'Horsford Road')
+                                    React.createElement('div', { className: 'text-xs opacity-90' }, 'Horsford Road')
                                 ),
                                 React.createElement('a', {
                                     href: 'https://what3words.com/maker.bootleg.poetic',
                                     target: '_blank',
                                     rel: 'noopener noreferrer',
-                                    className: 'block p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors'
+                                    className: 'block p-2 bg-purple-50 text-purple-800 rounded hover:bg-purple-100 transition-colors'
                                 },
                                     React.createElement('div', { className: 'font-medium text-sm' }, 'Annex'),
-                                    React.createElement('div', { className: 'text-xs text-gray-600' }, 'Infirmary Road')
+                                    React.createElement('div', { className: 'text-xs opacity-90' }, 'Infirmary Road')
                                 ),
                                 React.createElement('a', {
                                     href: 'https://what3words.com/stream.jukebox.chucks',
                                     target: '_blank',
                                     rel: 'noopener noreferrer',
-                                    className: 'block p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors'
+                                    className: 'block p-2 bg-yellow-50 text-yellow-800 rounded hover:bg-yellow-100 transition-colors'
                                 },
                                     React.createElement('div', { className: 'font-medium text-sm' }, 'TecVoc'),
-                                    React.createElement('div', { className: 'text-xs text-gray-600' }, 'Technical Campus')
+                                    React.createElement('div', { className: 'text-xs opacity-90' }, 'Technical Campus')
                                 )
                             )
                         )
