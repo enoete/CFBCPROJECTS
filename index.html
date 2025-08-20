@@ -364,10 +364,62 @@ const CFBC_EVENTS = [
                 const allCourseCodes = [...new Set([...clean.matchAll(courseCodePattern)].map(m => m[1]))];
                 console.log('Found course codes:', allCourseCodes);
                 
+                // Pre-process course information with better name extraction
+                const courseInfo = {};
+                allCourseCodes.forEach(code => {
+                    const courseIdx = clean.indexOf(code);
+                    const courseSection = clean.substring(courseIdx - 100, Math.min(courseIdx + 400, clean.length));
+                    
+                    // Extract course name - look for patterns
+                    let courseName = `Course ${code}`;
+                    
+                    // Pattern 1: "CAPE BIO 1 Module 1: Cell and Molecular Biology"
+                    let nameMatch = courseSection.match(/CAPE\s+[A-Z]+\s+\d+\s+Module\s*\d*:?\s*([^0-9]+?)(?:\s+\d+\.\d{2}|\s+CAPE|\s+[A-Z]{4}\d{4})/);
+                    if (nameMatch) {
+                        courseName = nameMatch[1].trim();
+                    } else {
+                        // Pattern 2: "CAPE CHEM 1 Module 1: Fundamentals in Chemistry"
+                        nameMatch = courseSection.match(/Module\s*\d*:?\s*([^0-9]+?)(?:\s+\d+\.\d{2}|\s+[A-Z]{4}\d{4})/);
+                        if (nameMatch) {
+                            courseName = nameMatch[1].trim();
+                        } else {
+                            // Pattern 3: "CAPE COM Module 3: Speaking and Writing"
+                            nameMatch = courseSection.match(/CAPE\s+[A-Z]+\s+Module\s*\d*:?\s*([^0-9]+?)(?:\s+COMM|\s+\d+\.\d{2})/);
+                            if (nameMatch) {
+                                courseName = nameMatch[1].trim();
+                            } else {
+                                // Pattern 4: "CAPE SOC 1 Module 1: Sociology, Culture and Identity"
+                                nameMatch = courseSection.match(/Module\s*\d*:?\s*([A-Za-z,\s]+?)(?:\s+SOCI|\s+\d+\.\d{2})/);
+                                if (nameMatch) {
+                                    courseName = nameMatch[1].trim();
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Clean up the course name
+                    courseName = courseName
+                        .replace(/\s+/g, ' ')
+                        .replace(/and\s+$/, 'and')
+                        .replace(/^\d+\s*/, '');
+                    
+                    // Extract instructor - look for "LastName, FirstName"
+                    const instructorMatch = courseSection.match(/([A-Z][a-z]+(?:-[A-Z][a-z]+)?),\s*([A-Z][a-z]+)/);
+                    const instructor = instructorMatch ? `${instructorMatch[1]}, ${instructorMatch[2]}` : null;
+                    
+                    courseInfo[code] = {
+                        name: courseName,
+                        lecturer: instructor,
+                        firstAppearance: courseIdx
+                    };
+                    
+                    console.log(`Course ${code}: ${courseName} (${instructor || 'No instructor'})`);
+                });
+                
                 const courses = {};
                 const allMeetings = [];
                 
-                // APPROACH: Find day-time patterns first, then work backwards to find locations
+                // Find ALL day-time patterns
                 const dayTimePattern = /(MON|TUE|WED|THU|FRI|SAT|SUN)\s+(\d{1,2}:\d{2}[ap]m)-(\d{1,2}:\d{2}[ap]m)/gi;
                 const dayTimeMatches = [...clean.matchAll(dayTimePattern)];
                 
@@ -379,20 +431,40 @@ const CFBC_EVENTS = [
                     const startTime = match[2];
                     const endTime = match[3];
                     
-                    // Look backwards for location (last word before the day)
-                    const beforeText = clean.substring(Math.max(0, match.index - 50), match.index);
-                    const words = beforeText.trim().split(/\s+/);
-                    let location = 'TBA';
+                    // Get context before the match to find location
+                    const beforeStart = Math.max(0, match.index - 150);
+                    const beforeText = clean.substring(beforeStart, match.index);
                     
-                    // Find the last word that looks like a room code (contains letters and numbers)
-                    for (let i = words.length - 1; i >= 0; i--) {
-                        if (/[A-Z]/.test(words[i]) && /\d/.test(words[i])) {
-                            location = words[i];
+                    // Split into words and reverse to search backwards
+                    const words = beforeText.trim().split(/\s+/).reverse();
+                    let location = null;
+                    
+                    // Look for room codes (working backwards from the day)
+                    for (let i = 0; i < words.length && i < 15; i++) {
+                        const word = words[i];
+                        
+                        // Check various room patterns
+                        if (/^[BC]\d{3}$/.test(word)) {
+                            // B101, C204, etc.
+                            location = word;
                             break;
-                        } else if (/^[A-Z]\d{3}$/.test(words[i]) || /^[A-Z]{2}\d/.test(words[i])) {
-                            location = words[i];
+                        } else if (/^[A-Z]{2,3}\d{1,3}[A-Z]{0,2}\d{0,2}$/.test(word)) {
+                            // BL2CR4, etc.
+                            location = word;
                             break;
+                        } else if (/^\d+\.\d{2}$/.test(word) && i + 1 < words.length) {
+                            // This is credits (4.00), check the word after it (before in original order)
+                            const nextWord = words[i + 1];
+                            if (/^[BC]\d{3}$/.test(nextWord)) {
+                                location = nextWord;
+                                break;
+                            }
                         }
+                    }
+                    
+                    // If no location found, mark as TBA
+                    if (!location) {
+                        location = 'TBA';
                     }
                     
                     // Look forward for meeting type
@@ -400,51 +472,80 @@ const CFBC_EVENTS = [
                     const typeMatch = afterText.match(/^\s*(Lab|Lecture|Tutorial)/i);
                     const type = typeMatch ? typeMatch[1] : 'Lecture';
                     
-                    // Find the course code this belongs to (nearest one before this match)
-                    const beforeFullText = clean.substring(0, match.index);
-                    const courseMatches = [...beforeFullText.matchAll(/([A-Z]{3,4}\d{4})/g)];
-                    const courseCode = courseMatches.length > 0 ? 
-                        courseMatches[courseMatches.length - 1][1] : null;
+                    // Find the course code this belongs to using the distance approach
+                    let courseCode = null;
+                    const meetingPos = match.index;
+                    
+                    // Find all course code positions
+                    const allCoursePositions = [];
+                    let courseMatch;
+                    const courseRegex = /([A-Z]{3,4}\d{4})/g;
+                    while ((courseMatch = courseRegex.exec(clean)) !== null) {
+                        allCoursePositions.push({
+                            code: courseMatch[1],
+                            position: courseMatch.index
+                        });
+                    }
+                    
+                    // Find the closest course code to this meeting
+                    let closestCourse = null;
+                    let minDistance = Infinity;
+                    
+                    for (const course of allCoursePositions) {
+                        const distance = Math.abs(meetingPos - course.position);
+                        
+                        // Check if this course code appears in a reasonable range
+                        // Meetings typically appear within 200-300 characters of their course code
+                        if (distance < 300 && distance < minDistance) {
+                            minDistance = distance;
+                            closestCourse = course;
+                        }
+                    }
+                    
+                    // If we found a close course, check if it makes sense
+                    if (closestCourse) {
+                        courseCode = closestCourse.code;
+                        
+                        // Additional logic: if the meeting appears AFTER a course code
+                        // but VERY close to the NEXT course code, it might belong to the next one
+                        const currentCourseIdx = allCoursePositions.findIndex(c => c.code === courseCode);
+                        
+                        if (currentCourseIdx < allCoursePositions.length - 1) {
+                            const nextCourse = allCoursePositions[currentCourseIdx + 1];
+                            
+                            // If this meeting is between two courses
+                            if (meetingPos > closestCourse.position && meetingPos < nextCourse.position) {
+                                // Check which course it's closer to in terms of typical pattern
+                                // Usually, the first meeting of a course appears just before the course code
+                                const distanceToNext = nextCourse.position - meetingPos;
+                                
+                                // If very close to the next course (within 50 chars), likely belongs to it
+                                if (distanceToNext < 50) {
+                                    courseCode = nextCourse.code;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Fallback: if no course found within reasonable distance, 
+                    // use the most recent course code before this meeting
+                    if (!courseCode) {
+                        const beforeCourses = allCoursePositions.filter(c => c.position < meetingPos);
+                        if (beforeCourses.length > 0) {
+                            courseCode = beforeCourses[beforeCourses.length - 1].code;
+                        }
+                    }
                     
                     console.log(`Meeting ${idx + 1}: ${courseCode} - ${location} ${day} ${startTime}-${endTime} ${type}`);
                     
                     if (courseCode) {
                         // Initialize course if needed
                         if (!courses[courseCode]) {
-                            // Find course details
-                            const courseIdx = clean.indexOf(courseCode);
-                            const courseSection = clean.substring(courseIdx, Math.min(courseIdx + 300, clean.length));
-                            
-                            // Extract course name
-                            let courseName = `Course ${courseCode}`;
-                            
-                            // Try different patterns for course names
-                            const namePatterns = [
-                                new RegExp(`${courseCode}\\s+\\d+\\s+(.+?)\\s+\\d+\\.\\d{2}`),
-                                new RegExp(`CAPE\\s+[A-Z]+\\s+\\d+\\s+Module\\s+\\d+:\\s*(.+?)\\s+\\d+\\.\\d{2}`),
-                                new RegExp(`Module\\s+\\d+:\\s*(.+?)\\s+CAPE`),
-                                new RegExp(`Module\\s+\\d+:\\s*(.+?)\\s+[A-Z]{4}\\d{4}`)
-                            ];
-                            
-                            for (const pattern of namePatterns) {
-                                const nameMatch = courseSection.match(pattern);
-                                if (nameMatch) {
-                                    courseName = nameMatch[1].trim()
-                                        .replace(/\s+/g, ' ')
-                                        .replace(/^\d+\s*/, '') // Remove leading numbers
-                                        .replace(/Module\s*\d+:?\s*/, ''); // Remove "Module X:"
-                                    break;
-                                }
-                            }
-                            
-                            // Extract instructor
-                            const instructorMatch = courseSection.match(/([A-Z][a-z]+(?:-[A-Z][a-z]+)?),\s*([A-Z][a-z]+)/);
-                            const instructor = instructorMatch ? `${instructorMatch[1]}, ${instructorMatch[2]}` : null;
-                            
+                            const info = courseInfo[courseCode] || {};
                             courses[courseCode] = {
                                 code: courseCode,
-                                name: courseName,
-                                lecturer: instructor,
+                                name: info.name || `Course ${courseCode}`,
+                                lecturer: info.lecturer || null,
                                 meetings: [],
                                 campus: 'Main'
                             };
@@ -493,6 +594,9 @@ const CFBC_EVENTS = [
                 // Log details for debugging
                 Object.values(courses).forEach(course => {
                     console.log(`${course.code}: ${course.name} - ${course.meetings.length} meetings`);
+                    course.meetings.forEach(m => {
+                        console.log(`  - ${m.day} ${m.startTime}-${m.endTime} ${m.type} at ${m.location}`);
+                    });
                 });
                 
                 // Return null if no courses found, otherwise return the schedule
