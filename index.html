@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CFBC Student Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        /* Custom animations and styles */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+    </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+// W3W Locations with proper links
+const W3W_LOCATIONS = {
+  'Main': [
+    {address: '///examples.rats.lanes', label: 'Student Services Center', link: 'https://what3words.com/examples.rats.lanes'},
+    {address: '///legs.badge.motivate', label: 'Cafeteria', link: 'https://what3words.com/legs.badge.motivate'},
+    {address: '///throats.selling.hurray', label: 'C105', link: 'https://what3words.com/throats.selling.hurray'},
+    {address: '///remedy.blend.guarding', label: 'C104', link: 'https://what3words.com/remedy.blend.guarding'},
+    {address: '///luggage.iceberg.monument', label: 'C103', link: 'https://what3words.com/luggage.iceberg.monument'},
+    {address: '///gadget.leafing.melons', label: 'C102', link: 'https://what3words.com/gadget.leafing.melons'},
+    {address: '///nagging.mute.prowess', label: 'C101', link: 'https://what3words.com/nagging.mute.prowess'},
+    {address: '///coast.mocked.harps', label: 'C201', link: 'https://what3words.com/coast.mocked.harps'},
+    {address: '///heads.shoving.roof', label: 'C202', link: 'https://what3words.com/heads.shoving.roof'},
+    {address: '///composers.sublet.contain', label: 'C203', link: 'https://what3words.com/composers.sublet.contain'},
+    {address: '///tags.tickles.valley', label: 'C204', link: 'https://what3words.com/tags.tickles.valley'},
+    {address: '///embraced.doped.firmly', label: 'Cashier', link: 'https://what3words.com/embraced.doped.firmly'},
+    {address: '///outgoing.shot.scramble', label: 'HR', link: 'https://what3words.com/outgoing.shot.scramble'},
+    {address: '///mini.playing.milk', label: 'Library', link: 'https://what3words.com/mini.playing.milk'},
+    {address: '///human.muffin.emerald', label: 'B101 (Biology Lab)', link: 'https://what3words.com/human.muffin.emerald'},
+    {address: '///crash.tipping.ending', label: 'B106 (Chemistry Lab)', link: 'https://what3words.com/crash.tipping.ending'},
+    {address: '///part.renting.degree', label: 'B109 (Physics Lab)', link: 'https://what3words.com/part.renting.degree'},
+    {address: '///markets.behind.storage', label: 'B206 (Computer Science Lab)', link: 'https://what3words.com/markets.behind.storage'},
+    {address: '///language.flood.lunges', label: 'B201 (Integrated Science Lab)', link: 'https://what3words.com/language.flood.lunges'},
+    {address: '///language.flood.lunges', label: 'B209', link: 'https://what3words.com/language.flood.lunges'}
+  ],
+  'Health Sciences': [
+    {address: '///silks.dumpy.tweaked', label: 'HSC1', link: 'https://what3words.com/silks.dumpy.tweaked'},
+    {address: '///uniforms.alas.restored', label: 'HSC2', link: 'https://what3words.com/uniforms.alas.restored'}
+  ],
+  'Annex': [
+    {address: '///maker.bootleg.poetic', label: 'ANXSTUDIO2', link: 'https://what3words.com/maker.bootleg.poetic'},
+    {address: '///selling.chart.sublime', label: 'ANXCR3', link: 'https://what3words.com/selling.chart.sublime'},
+    {address: '///holidays.anode.kneeled', label: 'ANXC5', link: 'https://what3words.com/holidays.anode.kneeled'}
+  ],
+  'TecVoc': [
+    {address: '///stream.jukebox.chucks', label: 'Admin Office', link: 'https://what3words.com/stream.jukebox.chucks'},
+    {address: '///frocks.knitted.backup', label: 'BL2CL1 (Computer Lab)', link: 'https://what3words.com/frocks.knitted.backup'},
+    {address: '///library.climbing.rinsed', label: 'C2 (Computer Lab)', link: 'https://what3words.com/library.climbing.rinsed'},
+    {address: '///fixed.amber.reported', label: 'BL2CR3', link: 'https://what3words.com/fixed.amber.reported'},
+    {address: '///caskets.choice.result', label: 'BL2DL5 (Architectural Drawing Room)', link: 'https://what3words.com/caskets.choice.result'},
+    {address: '///apply.facing.awoken', label: 'C6', link: 'https://what3words.com/apply.facing.awoken'},
+    {address: '///unrealistic.love.contour', label: 'BL2EL7', link: 'https://what3words.com/unrealistic.love.contour'},
+    {address: '///chair.stored.rooster', label: 'BL2T08 (Training Office)', link: 'https://what3words.com/chair.stored.rooster'},
+    {address: '///cultivation.donor.scarcely', label: 'BL2AC9', link: 'https://what3words.com/cultivation.donor.scarcely'},
+    {address: '///hesitate.subject.martini', label: 'Staff Room', link: 'https://what3words.com/hesitate.subject.martini'},
+    {address: '///evenly.compose.wisely', label: 'BL4WKS1', link: 'https://what3words.com/evenly.compose.wisely'},
+    {address: '///internal.finger.salt', label: 'BL4WKS2', link: 'https://what3words.com/internal.finger.salt'},
+    {address: '///steered.maternal.cookery', label: 'BL4WKS3', link: 'https://what3words.com/steered.maternal.cookery'},
+    {address: '///marriage.natively.scope', label: 'MV1', link: 'https://what3words.com/marriage.natively.scope'},
+    {address: '///costumes.photos.pitch', label: 'Robotics Room', link: 'https://what3words.com/costumes.photos.pitch'},
+    {address: '///shaves.passion.climbing', label: 'Automotive Center', link: 'https://what3words.com/shaves.passion.climbing'}
+  ]
+};
+
+// Events data
+const CFBC_EVENTS = [
+    {"event": "Teaching Begins for Semester I", "department": "Office of the Registrar", "date": "Monday, 25th August 2025"},
+    {"event": "Patriotic Reflections - Yellow Day", "department": "Student Services Department", "date": "Friday, 29th August 2025"},
+    {"event": "Convocation", "department": "Student Services Department", "date": "Tuesday, 2nd September 2025"},
+    {"event": "Semester I Late Registration Ends", "department": "Office of the Registrar", "date": "Friday, 5th September 2025"},
+    {"event": "Town Hall Meeting", "department": "SGA", "date": "Monday, 8th September 2025"},
+    {"event": "Independence Wear / National Colour Wear", "department": "SGA", "date": "Thursday, 18th September 2025"},
+    {"event": "CFBC's Founding Eight-Day Celebrations", "department": "Celebrations Committee", "date": "Saturday, 20th September 2025"},
+    {"event": "Uniform Code Enforced", "department": "Office of the Registrar", "date": "Monday, 22nd September 2025"},
+    {"event": "World Teacher's Day", "department": "SGA", "date": "Friday, 3rd October 2025"},
+    {"event": "BSN Midsemester Period", "department": "Division: Health Sciences", "date": "Monday, 6th October 2025"},
+    {"event": "World Mental Health Day - Wear Green", "department": "Student Services Department", "date": "Friday, 10th October 2025"},
+    {"event": "Mid-Semester Exams", "department": "Office of the Registrar", "date": "Monday, 20th October 2025"},
+    {"event": "Wear Pink Day- Breast Cancer Awareness", "department": "Student Services Department", "date": "Friday, 31st October 2025"},
+    {"event": "Registration for 2026 CXC Examinations", "department": "ACE", "date": "Monday, 3rd November 2025"},
+    {"event": "Commencement Ceremony", "department": "CFBC", "date": "Tuesday, 18th November 2025"},
+    {"event": "Teaching Ends for TVEMS, TEd and ENA", "department": "Office of the Registrar", "date": "Friday, 21st November 2025"},
+    {"event": "Teaching Ends BSN", "department": "Division: Health Sciences", "date": "Friday, 28th November 2025"},
+    {"event": "TVEMS and ENA Semester I Final Exam Period", "department": "Office of the Registrar", "date": "Monday, 1st December 2025"},
+    {"event": "Teaching Ends for ASGS, ACE CAPE and CSEC", "department": "Office of the Registrar", "date": "Friday, 12th December 2025"},
+    {"event": "Christmas Concert", "department": "CFBC Choral Ensemble", "date": "Tuesday, 16th December 2025"},
+    {"event": "Semester I Ends & College Closes", "department": "Office of the Registrar", "date": "Friday, 19th December 2025"},
+    {"event": "Semester II Registration Opens", "department": "Office of the Registrar", "date": "Monday, 5th January 2026"},
+    {"event": "Teaching Begins for Semester II", "department": "Office of the Registrar", "date": "Monday, 19th January 2026"},
+    {"event": "Student Welcome Back Celebrations", "department": "Student Services", "date": "Monday, 19th January 2026"},
+    {"event": "Semester II Late Registration Ends", "department": "Office of the Registrar", "date": "Friday, 30th January 2026"},
+    {"event": "Valentine Day Raffle", "department": "SGA", "date": "Friday, 13th February 2026"},
+    {"event": "African Wear Day", "department": "Student Services Department", "date": "Friday, 27th February 2026"},
+    {"event": "Spirit Week", "department": "Student Services Department", "date": "Monday, 2nd March 2026"},
+    {"event": "Mid-Semester Exams", "department": "Office of the Registrar", "date": "Monday, 16th March 2026"},
+    {"event": "World Down Syndrome Day", "department": "Student Services Department", "date": "Friday, 20th March 2026"},
+    {"event": "Teaching Ends for TEd, TVEMS and ENA", "department": "Office of the Registrar", "date": "Friday, 17th April 2026"},
+    {"event": "International Nurses Day", "department": "Division: Health Sciences", "date": "Tuesday, 12th May 2026"},
+    {"event": "Teaching Begins for Summer Semester", "department": "Office of the Registrar", "date": "Monday, 1st June 2026"}
+];
+</script>
+
+<script type="text/babel">
+    const { useState, useRef, useEffect, useMemo, useCallback } = React;
+
+    // Set PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    // ===== LUCIDE REACT ICONS (Embedded SVG) =====
+    const Clock = ({ size = 16, className = "", ...props }) => (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className} {...props}>
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12,6 12,12 16,14"/>
+        </svg>
+    );
+
+    const MapPin = ({ size = 16, className = "", ...props }) => (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className} {...props}>
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+            <circle cx="12" cy="10" r="3"/>
+        </svg>
+    );
+
+    const Calendar = ({ size = 16, className = "", ...props }) => (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className} {...props}>
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+    );
+
+    const User = ({ size = 16, className = "", ...props }) => (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className} {...props}>
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+        </svg>
+    );
+
+    const Upload = ({ size = 16, className = "", ...props }) => (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className} {...props}>
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+    );
+
+    const Search = ({ size = 16, className = "", ...props }) => (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className} {...props}>
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.35-4.35"/>
+        </svg>
+    );
+
+    const X = ({ size = 16, className = "", ...props }) => (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className} {...props}>
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+    );
+
+    const Book = ({ size = 16, className = "", ...props }) => (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className} {...props}>
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+    );
+
+    // ===== MAIN COMPONENT =====
+    function CFBCPortal() {
+        const [loading, setLoading] = useState(false);
+        const [events, setEvents] = useState(CFBC_EVENTS);
+        const [userSchedule, setUserSchedule] = useState(() => {
+            const stored = localStorage.getItem('cfbc-schedule');
+            return stored ? JSON.parse(stored) : null;
+        });
+        const [uploading, setUploading] = useState(false);
+        const [debugInfo, setDebugInfo] = useState('');
+        const [selectedDay, setSelectedDay] = useState(new Date().getDay());
+        const [showEventsModal, setShowEventsModal] = useState(false);
+        const [showLocationsModal, setShowLocationsModal] = useState(false);
+        const [eventSearchQuery, setEventSearchQuery] = useState('');
+        const [locationSearchQuery, setLocationSearchQuery] = useState('');
+        const [selectedCampus, setSelectedCampus] = useState('All');
+        const fileInputRef = useRef(null);
+
+        // Initialize events on mount with dynamic today/tomorrow events
+        useEffect(() => {
+            // Add dynamic events for today and tomorrow to demonstrate color coding
+            const today = new Date();
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                              'July', 'August', 'September', 'October', 'November', 'December'];
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            
+            const formatDate = (date) => {
+                const day = date.getDate();
+                const suffix = day === 1 || day === 21 || day === 31 ? 'st' :
+                              day === 2 || day === 22 ? 'nd' :
+                              day === 3 || day === 23 ? 'rd' : 'th';
+                return `${dayNames[date.getDay()]}, ${day}${suffix} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+            };
+            
+            // Add demo events for color coding demonstration
+            const dynamicEvents = [
+                {"event": "Tomorrow: Career Fair Preparation", "department": "Student Services", "date": formatDate(tomorrow)},
+                {"event": "Tomorrow: Tech Workshop", "department": "IT Department", "date": formatDate(tomorrow)},
+                ...CFBC_EVENTS
+            ];
+            
+            setEvents(dynamicEvents);
+            console.log('Events loaded:', dynamicEvents.length);
+        }, []);
+
+        // Save schedule to localStorage whenever it changes
+        useEffect(() => {
+            if (userSchedule) {
+                localStorage.setItem('cfbc-schedule', JSON.stringify(userSchedule));
+            }
+        }, [userSchedule]);
+
+        // Parse date from event date string
+        const parseEventDate = (dateStr) => {
+            try {
+                // Handle various date formats
+                if (dateStr.includes(' - ')) {
+                    // Range of dates, use the start date
+                    dateStr = dateStr.split(' - ')[0];
+                }
+                
+                // Parse formats like "Monday, 3rd November 2025"
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                                  'July', 'August', 'September', 'October', 'November', 'December'];
+                
+                for (let i = 0; i < monthNames.length; i++) {
+                    if (dateStr.includes(monthNames[i])) {
+                        const parts = dateStr.match(/(\d+)(?:st|nd|rd|th)?\s+([A-Za-z]+)\s+(\d{4})/);
+                        if (parts) {
+                            const day = parseInt(parts[1]);
+                            const year = parseInt(parts[3]);
+                            return new Date(year, i, day);
+                        }
+                    }
+                }
+                
+                // Try parsing ISO format dates
+                if (dateStr.match(/\d{4}-\d{2}-\d{2}/)) {
+                    return new Date(dateStr);
+                }
+                
+                return null;
+            } catch (e) {
+                return null;
+            }
+        };
+
+        // Get event status (today, tomorrow, upcoming)
+        const getEventStatus = (event) => {
+            const eventDate = parseEventDate(event.date);
+            if (!eventDate) return 'upcoming';
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            
+            eventDate.setHours(0, 0, 0, 0);
+            
+            if (eventDate.getTime() === today.getTime()) return 'today';
+            if (eventDate.getTime() === tomorrow.getTime()) return 'tomorrow';
+            if (eventDate > today) return 'upcoming';
+            return 'past';
+        };
+
+        // Filter and sort events
+        const filteredEvents = useMemo(() => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            return events
+                .filter(event => {
+                    const status = getEventStatus(event);
+                    if (status === 'past') return false;
+                    
+                    if (eventSearchQuery) {
+                        const query = eventSearchQuery.toLowerCase();
+                        return event.event.toLowerCase().includes(query) ||
+                               event.department.toLowerCase().includes(query) ||
+                               event.date.toLowerCase().includes(query);
+                    }
+                    return true;
+                })
+                .sort((a, b) => {
+                    const dateA = parseEventDate(a.date);
+                    const dateB = parseEventDate(b.date);
+                    if (!dateA) return 1;
+                    if (!dateB) return -1;
+                    return dateA - dateB;
+                });
+        }, [events, eventSearchQuery]);
+
+        // Get upcoming events (top 7)
+        const upcomingEvents = useMemo(() => {
+            return filteredEvents.slice(0, 7);
+        }, [filteredEvents]);
+
+        // Parse PDF file
+        const parsePDF = async (file) => {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+                let fullText = '';
+                
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    fullText += pageText + '\n';
+                }
+                
+                return fullText;
+            } catch (error) {
+                console.error('PDF parsing error:', error);
+                throw error;
+            }
+        };
+
+        // Parse schedule text with improved lecturer detection
+        const parseScheduleText = (text) => {
+            try {
+                const clean = (text || "").replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+
+                // Patterns for parsing
+                const meetingPattern = /(Lecture|Lab)\s*([A-Z0-9]{2,})\s+(MON|TUE|WED|THU|FRI|SAT|SUN)\s+(\d{1,2}:\d{2}[ap]m)\-(\d{1,2}:\d{2}[ap]m)(?:\s+([A-Z0-9\s]+?)(?=\s*(?:Lecture|Lab|$)))?/gi;
+                const coursePattern = /\b([A-Z]{4}\d{4})\b/g;
+                const namePattern = /([A-Z][a-zA-Z'-]+,\s*[A-Z][a-zA-Z'.-]+)/;
+                
+                // Look for instructors in format: "LastName, FirstName"
+                const instructorPattern = /([A-Z][a-z]+),\s*([A-Z][a-z]+(?:\s+[A-Z]?[a-z]*)?)\s+\d{2}\/\d{2}\/\d{4}/g;
+                
+                // Build instructor map
+                const instructorMap = {};
+                let match;
+                while ((match = instructorPattern.exec(clean)) !== null) {
+                    const fullName = `${match[1]}, ${match[2]}`;
+                    // Find nearby course code
+                    const beforeText = clean.substring(Math.max(0, match.index - 150), match.index);
+                    const courseMatch = beforeText.match(/([A-Z]{4}\d{4})/);
+                    if (courseMatch) {
+                        instructorMap[courseMatch[1]] = fullName;
+                    }
+                }
+
+                const events = [];
+                let m;
+                
+                // Find all meetings
+                while ((m = meetingPattern.exec(clean)) !== null) {
+                    events.push({
+                        type: 'meeting',
+                        index: m.index,
+                        kind: m[1],
+                        courseCode: m[2], 
+                        day: m[3],
+                        startTime: m[4],
+                        endTime: m[5],
+                        location: m[6] ? m[6].trim() : null
+                    });
+                }
+
+                // Find all course codes
+                coursePattern.lastIndex = 0;
+                while ((m = coursePattern.exec(clean)) !== null) {
+                    events.push({
+                        type: 'course',
+                        index: m.index,
+                        code: m[1]
+                    });
+                }
+
+                // Sort by position in text
+                events.sort((a, b) => a.index - b.index);
+
+                const courses = {};
+                const meetings = [];
+                let currentCourse = null;
+
+                for (const event of events) {
+                    if (event.type === 'course') {
+                        currentCourse = event.code;
+                        if (!courses[currentCourse]) {
+                            courses[currentCourse] = {
+                                code: currentCourse,
+                                name: `Course ${currentCourse}`,
+                                lecturer: instructorMap[currentCourse] || null,
+                                meetings: [],
+                                campus: 'Main'
+                            };
+                        }
+                    } else if (event.type === 'meeting' && currentCourse) {
+                        const location = event.location || event.courseCode;
+                        const campus = determineCampus(location);
+                        const w3wLocation = findW3WLocation(location, campus);
+                        
+                        const meeting = {
+                            courseCode: currentCourse,
+                            courseName: courses[currentCourse].name,
+                            type: event.kind,
+                            day: event.day,
+                            startTime: event.startTime,
+                            endTime: event.endTime,
+                            location: location,
+                            campus: campus,
+                            lecturer: courses[currentCourse].lecturer,
+                            color: getColorForCourse(currentCourse),
+                            w3w: w3wLocation ? w3wLocation.link : null,
+                            w3wAddress: w3wLocation ? w3wLocation.address : null
+                        };
+                        meetings.push(meeting);
+                        courses[currentCourse].meetings.push(meeting);
+                    }
+                }
+
+                // Extract student name
+                const nameMatch = namePattern.exec(clean);
+                const studentName = nameMatch ? nameMatch[1] : 'Student';
+
+                return {
+                    studentName,
+                    courses: Object.values(courses),
+                    meetings,
+                    totalMeetings: meetings.length
+                };
+            } catch (error) {
+                console.error('Schedule parsing error:', error);
+                return null;
+            }
+        };
+
+        // Find W3W location for a room
+        const findW3WLocation = (room, campus) => {
+            const campusLocations = W3W_LOCATIONS[campus] || W3W_LOCATIONS['Main'];
+            return campusLocations.find(loc => 
+                loc.label.includes(room) || 
+                loc.label === room ||
+                loc.label.includes(`(${room})`)
+            );
+        };
+
+        // Determine campus based on room location
+        const determineCampus = (location) => {
+            if (!location) return 'Main';
+            if (location.startsWith('HSC')) return 'Health Sciences';
+            if (location.startsWith('ANX')) return 'Annex';
+            if (location.startsWith('BL') || location.startsWith('MV')) return 'TecVoc';
+            return 'Main';
+        };
+
+        // Get color for course
+        const getColorForCourse = (courseCode) => {
+            const colors = [
+                'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500',
+                'bg-yellow-500', 'bg-indigo-500', 'bg-red-500', 'bg-orange-500'
+            ];
+            let hash = 0;
+            for (let i = 0; i < courseCode.length; i++) {
+                hash = courseCode.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return colors[Math.abs(hash) % colors.length];
+        };
+
+        // Handle file upload
+        const handleFileUpload = async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            setUploading(true);
+            try {
+                const text = await parsePDF(file);
+                const schedule = parseScheduleText(text);
+                
+                if (schedule) {
+                    setUserSchedule(schedule);
+                    setDebugInfo(`Parsed ${schedule.courses.length} courses with ${schedule.totalMeetings} meetings`);
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                setDebugInfo(`Error: ${error.message}`);
+            } finally {
+                setUploading(false);
+            }
+        };
+
+        // Get meetings for a specific day
+        const getMeetingsForDay = (dayIndex) => {
+            if (!userSchedule || !userSchedule.meetings) return [];
+            const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+            const dayName = days[dayIndex];
+            return userSchedule.meetings.filter(m => m.day === dayName).sort((a, b) => {
+                const timeA = parseInt(a.startTime.replace(/[^\d]/g, ''));
+                const timeB = parseInt(b.startTime.replace(/[^\d]/g, ''));
+                return timeA - timeB;
+            });
+        };
+
+        // Filter locations based on search
+        const filteredLocations = useMemo(() => {
+            let locations = [];
+            
+            if (selectedCampus === 'All') {
+                Object.entries(W3W_LOCATIONS).forEach(([campus, locs]) => {
+                    locations = locations.concat(locs.map(l => ({...l, campus})));
+                });
+            } else {
+                locations = (W3W_LOCATIONS[selectedCampus] || []).map(l => ({...l, campus: selectedCampus}));
+            }
+            
+            if (locationSearchQuery) {
+                const query = locationSearchQuery.toLowerCase();
+                return locations.filter(loc => 
+                    loc.label.toLowerCase().includes(query) ||
+                    loc.address.toLowerCase().includes(query) ||
+                    loc.campus.toLowerCase().includes(query)
+                );
+            }
+            
+            return locations;
+        }, [selectedCampus, locationSearchQuery]);
+
+        // Main render
+        return React.createElement('div', { className: 'min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4' },
+            React.createElement('div', { className: 'max-w-7xl mx-auto' },
+                // Header
+                React.createElement('div', { className: 'bg-white rounded-lg shadow-lg p-4 mb-4' },
+                    React.createElement('div', { className: 'flex items-center justify-between' },
+                        React.createElement('div', { className: 'flex items-center gap-3' },
+                            React.createElement('img', {
+                                src: 'https://cfbc.edu.kn/wp-content/uploads/2019/07/cfbc-crest-2019.png',
+                                alt: 'CFBC Logo',
+                                className: 'w-12 h-12 rounded-full',
+                                onError: (e) => { e.target.style.display = 'none'; }
+                            }),
+                            React.createElement('div', null,
+                                React.createElement('h1', { className: 'text-2xl font-bold text-gray-900' }, 'CFBC Student Portal'),
+                                React.createElement('p', { className: 'text-sm text-gray-600' }, 'Schedule • Events • Locations')
+                            )
+                        ),
+                        // Quick Action Badges
+                        React.createElement('div', { className: 'flex gap-2' },
+                            React.createElement('button', {
+                                onClick: () => setShowEventsModal(true),
+                                className: 'relative px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2'
+                            },
+                                React.createElement(Calendar, { size: 20 }),
+                                React.createElement('span', null, 'Events'),
+                                upcomingEvents.filter(e => getEventStatus(e) === 'today').length > 0 &&
+                                React.createElement('span', { className: 'absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse' })
+                            ),
+                            React.createElement('button', {
+                                onClick: () => setShowLocationsModal(true),
+                                className: 'px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2'
+                            },
+                                React.createElement(MapPin, { size: 20 }),
+                                React.createElement('span', null, 'Locations')
+                            )
+                        )
+                    )
+                ),
+
+                // Quick Stats
+                React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-4 gap-4 mb-4' },
+                    // My Courses
+                    React.createElement('div', { className: 'bg-white rounded-lg shadow p-4' },
+                        React.createElement('div', { className: 'flex items-center' },
+                            React.createElement('div', { className: 'p-2 bg-blue-100 rounded-lg' },
+                                React.createElement(Book, { size: 24, className: 'text-blue-600' })
+                            ),
+                            React.createElement('div', { className: 'ml-4' },
+                                React.createElement('p', { className: 'text-sm font-medium text-gray-600' }, 'My Courses'),
+                                React.createElement('p', { className: 'text-2xl font-bold text-gray-900' },
+                                    userSchedule ? userSchedule.courses.length : 0
+                                )
+                            )
+                        )
+                    ),
+                    // Weekly Sessions
+                    React.createElement('div', { className: 'bg-white rounded-lg shadow p-4' },
+                        React.createElement('div', { className: 'flex items-center' },
+                            React.createElement('div', { className: 'p-2 bg-green-100 rounded-lg' },
+                                React.createElement(Clock, { size: 24, className: 'text-green-600' })
+                            ),
+                            React.createElement('div', { className: 'ml-4' },
+                                React.createElement('p', { className: 'text-sm font-medium text-gray-600' }, 'Weekly Sessions'),
+                                React.createElement('p', { className: 'text-2xl font-bold text-gray-900' },
+                                    userSchedule ? userSchedule.totalMeetings : 0
+                                )
+                            )
+                        )
+                    ),
+                    // Campus Locations
+                    React.createElement('div', { className: 'bg-white rounded-lg shadow p-4' },
+                        React.createElement('div', { className: 'flex items-center' },
+                            React.createElement('div', { className: 'p-2 bg-purple-100 rounded-lg' },
+                                React.createElement(MapPin, { size: 24, className: 'text-purple-600' })
+                            ),
+                            React.createElement('div', { className: 'ml-4' },
+                                React.createElement('p', { className: 'text-sm font-medium text-gray-600' }, 'Campus Locations'),
+                                React.createElement('p', { className: 'text-2xl font-bold text-gray-900' }, '4')
+                            )
+                        )
+                    ),
+                    // Student
+                    React.createElement('div', { className: 'bg-white rounded-lg shadow p-4' },
+                        React.createElement('div', { className: 'flex items-center' },
+                            React.createElement('div', { className: 'p-2 bg-yellow-100 rounded-lg' },
+                                React.createElement(User, { size: 24, className: 'text-yellow-600' })
+                            ),
+                            React.createElement('div', { className: 'ml-4' },
+                                React.createElement('p', { className: 'text-sm font-medium text-gray-600' }, 'Student'),
+                                React.createElement('p', { className: 'text-lg font-bold text-gray-900' },
+                                    userSchedule ? userSchedule.studentName.split(',')[0] : 'Not Loaded'
+                                )
+                            )
+                        )
+                    )
+                ),
+
+                // Main Content Area with Grid Layout
+                React.createElement('div', { className: 'grid grid-cols-1 lg:grid-cols-3 gap-4' },
+                    // Main Panel - Schedule (2/3 width)
+                    React.createElement('div', { className: 'lg:col-span-2' },
+                        React.createElement('div', { className: 'bg-white rounded-lg shadow-lg p-6' },
+                            !userSchedule ?
+                                // Upload Schedule UI
+                                React.createElement('div', { className: 'text-center py-12' },
+                                    React.createElement(Upload, { size: 48, className: 'mx-auto text-gray-400 mb-4' }),
+                                    React.createElement('h2', { className: 'text-xl font-semibold text-gray-900 mb-2' }, 'Upload Your Schedule'),
+                                    React.createElement('p', { className: 'text-gray-600 mb-6' }, 'Upload your PDF schedule to see a visual representation'),
+                                    React.createElement('input', {
+                                        ref: fileInputRef,
+                                        type: 'file',
+                                        accept: '.pdf',
+                                        onChange: handleFileUpload,
+                                        className: 'hidden'
+                                    }),
+                                    React.createElement('button', {
+                                        onClick: () => fileInputRef.current?.click(),
+                                        disabled: uploading,
+                                        className: 'px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors'
+                                    }, uploading ? 'Processing...' : 'Choose PDF File'),
+                                    debugInfo && React.createElement('div', { className: 'mt-4 p-3 bg-gray-100 rounded text-xs text-gray-600' }, debugInfo)
+                                ) :
+                                // Schedule Display
+                                React.createElement('div', null,
+                                    // Schedule Header
+                                    React.createElement('div', { className: 'flex items-center justify-between mb-6' },
+                                        React.createElement('div', null,
+                                            React.createElement('h2', { className: 'text-xl font-semibold text-gray-900' }, 'Weekly Schedule'),
+                                            React.createElement('p', { className: 'text-sm text-gray-600' },
+                                                `${userSchedule.studentName} • ${userSchedule.courses.length} courses`
+                                            )
+                                        ),
+                                        React.createElement('div', { className: 'flex gap-2' },
+                                            React.createElement('input', {
+                                                ref: fileInputRef,
+                                                type: 'file',
+                                                accept: '.pdf',
+                                                onChange: handleFileUpload,
+                                                className: 'hidden'
+                                            }),
+                                            React.createElement('button', {
+                                                onClick: () => fileInputRef.current?.click(),
+                                                disabled: uploading,
+                                                className: 'px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm'
+                                            }, uploading ? 'Processing...' : 'Update Schedule'),
+                                            React.createElement('button', {
+                                                onClick: () => {
+                                                    setUserSchedule(null);
+                                                    localStorage.removeItem('cfbc-schedule');
+                                                },
+                                                className: 'px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm'
+                                            }, 'Clear')
+                                        )
+                                    ),
+                                    // Day Selector
+                                    React.createElement('div', { className: 'flex gap-2 mb-4 overflow-x-auto' },
+                                        ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, idx) =>
+                                            React.createElement('button', {
+                                                key: idx,
+                                                onClick: () => setSelectedDay(idx),
+                                                className: `px-4 py-2 rounded-lg font-medium transition-colors ${
+                                                    selectedDay === idx
+                                                        ? 'bg-blue-600 text-white'
+                                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                }`
+                                            }, day)
+                                        )
+                                    ),
+                                    // Day Schedule
+                                    React.createElement('div', { className: 'bg-gray-50 rounded-lg p-4 min-h-[400px]' },
+                                        getMeetingsForDay(selectedDay).length > 0 ?
+                                            React.createElement('div', { className: 'space-y-3' },
+                                                getMeetingsForDay(selectedDay).map((meeting, idx) =>
+                                                    React.createElement('div', {
+                                                        key: idx,
+                                                        className: `${meeting.color} text-white rounded-lg p-4 shadow`
+                                                    },
+                                                        React.createElement('div', { className: 'flex items-start justify-between' },
+                                                            React.createElement('div', null,
+                                                                React.createElement('div', { className: 'font-semibold text-lg' }, meeting.courseCode),
+                                                                React.createElement('div', { className: 'text-sm opacity-90' }, meeting.type),
+                                                                meeting.lecturer && React.createElement('div', { className: 'text-xs opacity-80 mt-1' }, `👨‍🏫 ${meeting.lecturer}`)
+                                                            ),
+                                                            React.createElement('div', { className: 'text-right' },
+                                                                React.createElement('div', { className: 'font-medium' }, `${meeting.startTime} - ${meeting.endTime}`),
+                                                                meeting.location && React.createElement('div', { className: 'text-xs opacity-90 mt-1' }, `📍 ${meeting.location}`),
+                                                                meeting.w3w && React.createElement('a', {
+                                                                    href: meeting.w3w,
+                                                                    target: '_blank',
+                                                                    rel: 'noopener noreferrer',
+                                                                    className: 'mt-1 text-xs bg-white/20 px-2 py-1 rounded hover:bg-white/30 transition-colors inline-block'
+                                                                }, `🗺️ ${meeting.w3wAddress}`)
+                                                            )
+                                                        )
+                                                    )
+                                                )
+                                            ) :
+                                            React.createElement('div', { className: 'text-center py-12 text-gray-500' },
+                                                `No classes scheduled for ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][selectedDay]}`
+                                            )
+                                    ),
+                                    // Course List
+                                    React.createElement('div', { className: 'mt-6' },
+                                        React.createElement('h3', { className: 'text-lg font-semibold mb-3' }, 'All Courses'),
+                                        React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-3' },
+                                            userSchedule.courses.map((course, idx) =>
+                                                React.createElement('div', { key: idx, className: 'bg-gray-50 rounded-lg p-4' },
+                                                    React.createElement('div', { className: 'font-medium text-blue-600' }, course.code),
+                                                    React.createElement('div', { className: 'text-sm text-gray-700' }, course.name),
+                                                    course.lecturer && React.createElement('div', { className: 'text-xs text-gray-600 mt-1' }, `Instructor: ${course.lecturer}`),
+                                                    React.createElement('div', { className: 'text-xs text-gray-500 mt-1' }, `${course.meetings.length} sessions/week • ${course.campus} Campus`)
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                        )
+                    ),
+
+                    // Side Panel (1/3 width)
+                    React.createElement('div', { className: 'space-y-4' },
+                        // Today's Schedule
+                        React.createElement('div', { className: 'bg-white rounded-lg shadow-lg p-4' },
+                            React.createElement('h3', { className: 'text-lg font-semibold mb-3 flex items-center' },
+                                React.createElement(Clock, { className: 'mr-2', size: 20 }),
+                                "Today's Schedule"
+                            ),
+                            getMeetingsForDay(new Date().getDay()).length > 0 ?
+                                React.createElement('div', { className: 'space-y-2' },
+                                    getMeetingsForDay(new Date().getDay()).map((meeting, idx) =>
+                                        React.createElement('div', { key: idx, className: `${meeting.color} text-white rounded-lg p-3` },
+                                            React.createElement('div', { className: 'font-medium' }, meeting.courseCode),
+                                            React.createElement('div', { className: 'text-sm opacity-90' },
+                                                `${meeting.type} • ${meeting.startTime} - ${meeting.endTime}`
+                                            )
+                                        )
+                                    )
+                                ) :
+                                React.createElement('p', { className: 'text-gray-500 text-sm' }, 'No classes today')
+                        ),
+
+                        // Upcoming Events
+                        React.createElement('div', { className: 'bg-white rounded-lg shadow-lg p-4' },
+                            React.createElement('h3', { className: 'text-lg font-semibold mb-3 flex items-center' },
+                                React.createElement(Calendar, { className: 'mr-2', size: 20 }),
+                                'Upcoming Events'
+                            ),
+                            React.createElement('div', { className: 'space-y-2 max-h-96 overflow-y-auto' },
+                                upcomingEvents.slice(0, 7).map((event, idx) => {
+                                    const status = getEventStatus(event);
+                                    const borderColor = status === 'today' ? 'border-green-500' :
+                                                      status === 'tomorrow' ? 'border-orange-500' :
+                                                      'border-purple-500';
+                                    const bgColor = status === 'today' ? 'bg-green-50' :
+                                                   status === 'tomorrow' ? 'bg-orange-50' :
+                                                   'bg-purple-50';
+                                    
+                                    return React.createElement('div', {
+                                        key: idx,
+                                        className: `border-l-4 ${borderColor} ${bgColor} pl-3 py-2 rounded-r`
+                                    },
+                                        React.createElement('div', { className: 'font-medium text-sm text-gray-900' }, event.event),
+                                        React.createElement('div', { className: 'text-xs text-gray-600' },
+                                            event.date,
+                                            status === 'today' && React.createElement('span', {
+                                                className: 'ml-2 inline-block bg-green-500 text-white text-xs px-2 py-0.5 rounded-full'
+                                            }, 'Today'),
+                                            status === 'tomorrow' && React.createElement('span', {
+                                                className: 'ml-2 inline-block bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full'
+                                            }, 'Tomorrow')
+                                        )
+                                    );
+                                })
+                            )
+                        ),
+
+                        // Campus Locations
+                        React.createElement('div', { className: 'bg-white rounded-lg shadow-lg p-4' },
+                            React.createElement('h3', { className: 'text-lg font-semibold mb-3 flex items-center' },
+                                React.createElement(MapPin, { className: 'mr-2', size: 20 }),
+                                'Campus Locations'
+                            ),
+                            React.createElement('div', { className: 'space-y-2' },
+                                React.createElement('a', {
+                                    href: 'https://what3words.com/examples.rats.lanes',
+                                    target: '_blank',
+                                    rel: 'noopener noreferrer',
+                                    className: 'block p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors'
+                                },
+                                    React.createElement('div', { className: 'font-medium text-sm' }, 'Main Campus'),
+                                    React.createElement('div', { className: 'text-xs text-gray-600' }, 'Burdon Street')
+                                ),
+                                React.createElement('a', {
+                                    href: 'https://what3words.com/silks.dumpy.tweaked',
+                                    target: '_blank',
+                                    rel: 'noopener noreferrer',
+                                    className: 'block p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors'
+                                },
+                                    React.createElement('div', { className: 'font-medium text-sm' }, 'Health Sciences'),
+                                    React.createElement('div', { className: 'text-xs text-gray-600' }, 'Horsford Road')
+                                ),
+                                React.createElement('a', {
+                                    href: 'https://what3words.com/maker.bootleg.poetic',
+                                    target: '_blank',
+                                    rel: 'noopener noreferrer',
+                                    className: 'block p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors'
+                                },
+                                    React.createElement('div', { className: 'font-medium text-sm' }, 'Annex'),
+                                    React.createElement('div', { className: 'text-xs text-gray-600' }, 'Infirmary Road')
+                                ),
+                                React.createElement('a', {
+                                    href: 'https://what3words.com/stream.jukebox.chucks',
+                                    target: '_blank',
+                                    rel: 'noopener noreferrer',
+                                    className: 'block p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors'
+                                },
+                                    React.createElement('div', { className: 'font-medium text-sm' }, 'TecVoc'),
+                                    React.createElement('div', { className: 'text-xs text-gray-600' }, 'Technical Campus')
+                                )
+                            )
+                        )
+                    )
+                ),
+
+                // Events Modal
+                showEventsModal && React.createElement('div', { className: 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4' },
+                    React.createElement('div', { className: 'bg-white rounded-lg max-w-3xl w-full max-h-[80vh] overflow-hidden fade-in' },
+                        React.createElement('div', { className: 'p-4 border-b flex items-center justify-between' },
+                            React.createElement('h2', { className: 'text-xl font-semibold flex items-center gap-2' },
+                                React.createElement(Calendar, { size: 24 }),
+                                'CFBC Events Calendar'
+                            ),
+                            React.createElement('button', {
+                                onClick: () => setShowEventsModal(false),
+                                className: 'p-2 hover:bg-gray-100 rounded-lg transition-colors'
+                            }, React.createElement(X, { size: 20 }))
+                        ),
+                        React.createElement('div', { className: 'p-4' },
+                            React.createElement('div', { className: 'mb-4' },
+                                React.createElement('div', { className: 'relative' },
+                                    React.createElement(Search, {
+                                        className: 'absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400',
+                                        size: 20
+                                    }),
+                                    React.createElement('input', {
+                                        type: 'text',
+                                        placeholder: 'Search events...',
+                                        value: eventSearchQuery,
+                                        onChange: (e) => setEventSearchQuery(e.target.value),
+                                        className: 'w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500'
+                                    })
+                                )
+                            ),
+                            React.createElement('div', { className: 'overflow-y-auto max-h-[60vh] space-y-2' },
+                                filteredEvents.map((event, idx) => {
+                                    const status = getEventStatus(event);
+                                    const borderColor = status === 'today' ? 'border-green-500' :
+                                                      status === 'tomorrow' ? 'border-orange-500' :
+                                                      'border-purple-500';
+                                    const bgColor = status === 'today' ? 'bg-green-50' :
+                                                   status === 'tomorrow' ? 'bg-orange-50' :
+                                                   'bg-purple-50';
+                                    
+                                    return React.createElement('div', {
+                                        key: idx,
+                                        className: `border-l-4 ${borderColor} ${bgColor} rounded-lg p-4 hover:shadow-md transition-shadow`
+                                    },
+                                        React.createElement('div', { className: 'flex items-start justify-between' },
+                                            React.createElement('div', { className: 'flex-1' },
+                                                React.createElement('div', { className: 'font-medium text-gray-900' }, event.event),
+                                                React.createElement('div', { className: 'text-sm text-gray-600 mt-1' },
+                                                    React.createElement('span', {
+                                                        className: 'inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs mr-2'
+                                                    }, event.department),
+                                                    React.createElement('span', { className: 'text-gray-500' }, `📅 ${event.date}`)
+                                                )
+                                            ),
+                                            status === 'today' && React.createElement('span', {
+                                                className: `${badgeClass} text-white text-xs px-2 py-1 rounded-full`
+                                            }, 'Today'),
+                                            status === 'tomorrow' && React.createElement('span', {
+                                                className: `${badgeClass} text-white text-xs px-2 py-1 rounded-full`
+                                            }, 'Tomorrow')
+                                        )
+                                    );
+                                })
+                            )
+                        )
+                    )
+                ),
+
+                // Locations Modal
+                showLocationsModal && React.createElement('div', { className: 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4' },
+                    React.createElement('div', { className: 'bg-white rounded-lg max-w-3xl w-full max-h-[80vh] overflow-hidden fade-in' },
+                        React.createElement('div', { className: 'p-4 border-b flex items-center justify-between' },
+                            React.createElement('h2', { className: 'text-xl font-semibold flex items-center gap-2' },
+                                React.createElement(MapPin, { size: 24 }),
+                                'CFBC Campus Locations'
+                            ),
+                            React.createElement('button', {
+                                onClick: () => setShowLocationsModal(false),
+                                className: 'p-2 hover:bg-gray-100 rounded-lg transition-colors'
+                            }, React.createElement(X, { size: 20 }))
+                        ),
+                        React.createElement('div', { className: 'p-4' },
+                            React.createElement('div', { className: 'mb-4 space-y-3' },
+                                React.createElement('div', { className: 'flex gap-2' },
+                                    ['All', 'Main', 'Health Sciences', 'Annex', 'TecVoc'].map(campus =>
+                                        React.createElement('button', {
+                                            key: campus,
+                                            onClick: () => setSelectedCampus(campus),
+                                            className: `px-3 py-1 rounded-lg transition-colors ${
+                                                selectedCampus === campus
+                                                    ? 'bg-purple-600 text-white'
+                                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                            }`
+                                        }, campus)
+                                    )
+                                ),
+                                React.createElement('div', { className: 'relative' },
+                                    React.createElement(Search, {
+                                        className: 'absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400',
+                                        size: 20
+                                    }),
+                                    React.createElement('input', {
+                                        type: 'text',
+                                        placeholder: 'Search locations...',
+                                        value: locationSearchQuery,
+                                        onChange: (e) => setLocationSearchQuery(e.target.value),
+                                        className: 'w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500'
+                                    })
+                                )
+                            ),
+                            React.createElement('div', { className: 'overflow-y-auto max-h-[60vh] space-y-2' },
+                                filteredLocations.map((location, idx) =>
+                                    React.createElement('a', {
+                                        key: idx,
+                                        href: location.link,
+                                        target: '_blank',
+                                        rel: 'noopener noreferrer',
+                                        className: 'block border rounded-lg p-3 hover:bg-purple-50 hover:border-purple-300 transition-colors'
+                                    },
+                                        React.createElement('div', { className: 'flex items-center justify-between' },
+                                            React.createElement('div', null,
+                                                React.createElement('div', { className: 'font-medium text-gray-900' }, location.label),
+                                                React.createElement('div', { className: 'text-sm text-purple-600' }, location.address)
+                                            ),
+                                            React.createElement('div', { className: 'text-xs bg-gray-100 px-2 py-1 rounded' }, location.campus)
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        );
+    }
+
+    // Render the application
+    ReactDOM.render(React.createElement(CFBCPortal), document.getElementById('root'));
+</script>
+</body>
+</html>
